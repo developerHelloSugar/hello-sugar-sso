@@ -25,6 +25,8 @@ async function goToWebsite2WithSSO(event) {
 const WEBSITE2_ORIGIN = 'http://localhost:3001';
 
 let lastEmbedToken = null;
+let embedListenerWired = false;
+let embedHandshakeTimer = null;
 
 function showEmbedSection() {
     const section = document.getElementById('embed-section');
@@ -36,7 +38,10 @@ function hideEmbedSection() {
     if (section) section.classList.add('hidden');
 
     const iframe = document.getElementById('embed-iframe');
-    if (iframe) iframe.src = 'about:blank';
+    if (iframe) {
+        iframe.classList.remove('is-loading');
+        iframe.src = 'about:blank';
+    }
 
     lastEmbedToken = null;
 }
@@ -63,6 +68,31 @@ function setEmbedLoading(isLoading, message) {
     }
 }
 
+function ensureEmbedListener() {
+    if (embedListenerWired) return;
+    embedListenerWired = true;
+
+    window.addEventListener('message', (event) => {
+        if (event.origin !== WEBSITE2_ORIGIN) return;
+        const payload = event.data;
+        if (!payload || payload.type !== 'EMBED_AUTH_STATUS' || payload.site !== 'website2') return;
+
+        if (embedHandshakeTimer) {
+            clearTimeout(embedHandshakeTimer);
+            embedHandshakeTimer = null;
+        }
+
+        const iframe = document.getElementById('embed-iframe');
+        if (payload.authenticated) {
+            setEmbedLoading(false);
+            if (iframe) iframe.classList.remove('is-loading');
+        } else {
+            setEmbedLoading(true, 'Website 2 is not authenticated. Open in new tab to sign in.');
+            if (iframe) iframe.classList.add('is-loading');
+        }
+    });
+}
+
 async function generateWebsite2SSOToken() {
     const response = await fetch('/auth/generate-sso-for-site', {
         method: 'POST',
@@ -77,12 +107,14 @@ async function generateWebsite2SSOToken() {
 async function loadWebsite2Embed(event) {
     if (event) event.preventDefault();
 
+    ensureEmbedListener();
     showEmbedSection();
     setEmbedLoading(true);
 
     const iframe = document.getElementById('embed-iframe');
     if (!iframe) return;
 
+    iframe.classList.add('is-loading');
     iframe.src = 'about:blank';
 
     try {
@@ -93,8 +125,12 @@ async function loadWebsite2Embed(event) {
         }
 
         lastEmbedToken = token;
-        iframe.onload = () => setEmbedLoading(false);
         iframe.src = `${WEBSITE2_ORIGIN}/sso-login?token=${encodeURIComponent(token)}`;
+
+        if (embedHandshakeTimer) clearTimeout(embedHandshakeTimer);
+        embedHandshakeTimer = setTimeout(() => {
+            setEmbedLoading(true, 'Still loading Website 2... (if it hangs, try "Open in new tab")');
+        }, 6000);
     } catch (error) {
         console.error('[website1] Error embedding Website 2:', error);
         setEmbedLoading(true, 'Error loading Website 2. Please try again.');

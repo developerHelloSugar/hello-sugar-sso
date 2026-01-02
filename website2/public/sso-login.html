@@ -37,12 +37,16 @@
         const RETURN_URL = window.location.origin;
 
         function redirectToSSO() {
-            console.log('[website2 sso-login] Redirecting to SSO with returnUrl:', RETURN_URL);
-            window.location.href = `${SSO_SERVICE_URL}/login?returnUrl=${encodeURIComponent(RETURN_URL)}`;
+            const fullReturnUrl = returnTo !== '/'
+                ? `${RETURN_URL}/sso-login?returnTo=${encodeURIComponent(returnTo)}`
+                : RETURN_URL;
+            console.log('[website2 sso-login] Redirecting to SSO with returnUrl:', fullReturnUrl);
+            window.location.href = `${SSO_SERVICE_URL}/login?returnUrl=${encodeURIComponent(fullReturnUrl)}`;
         }
 
         const urlParams = new URLSearchParams(window.location.search);
         const ssoToken = urlParams.get('token');
+        const returnTo = urlParams.get('returnTo') || '/';
         const ssoStatusDiv = document.getElementById('sso-status');
 
         if (ssoToken) {
@@ -80,7 +84,7 @@
                     ssoStatusDiv.className = 'sso-status success';
 
                     setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = returnTo;
                     }, 1500);
                 } else {
                     ssoStatusDiv.innerHTML = `SSO login failed: ${data.error || 'Unknown error'}`;
@@ -101,7 +105,7 @@
                 const data = await response.json();
 
                 if (data.authenticated) {
-                    window.location.href = '/';
+                    window.location.href = returnTo;
                 }
             } catch (error) {
                 console.error('Error checking auth status:', error);

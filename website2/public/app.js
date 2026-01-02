@@ -70,6 +70,14 @@ async function checkAuthStatus() {
                 </a>
             `;
         }
+
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({
+                type: 'EMBED_AUTH_STATUS',
+                site: 'website2',
+                authenticated: Boolean(data.authenticated)
+            }, '*');
+        }
     } catch (error) {
         console.error('Error checking auth status:', error);
     }

@@ -121,7 +121,18 @@ app.get('/auth/google/callback',
           ssoTokens.delete(token);
         }, 5 * 60 * 1000);
 
-        res.redirect(`${returnUrl}/sso-login?token=${token}`);
+        try {
+          const parsed = new URL(returnUrl);
+          if (parsed.pathname.endsWith('/sso-login')) {
+            parsed.searchParams.set('token', token);
+            res.redirect(parsed.toString());
+          } else {
+            res.redirect(`${parsed.origin}/sso-login?token=${encodeURIComponent(token)}`);
+          }
+        } catch (e) {
+          console.error('[/auth/google/callback] Invalid returnUrl:', returnUrl, e);
+          res.redirect('/');
+        }
       } else {
         res.redirect('/');
       }

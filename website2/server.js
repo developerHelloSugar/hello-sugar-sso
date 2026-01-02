@@ -88,8 +88,43 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/sso-login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'sso-login.html'));
+app.get('/sso-login', async (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token : null;
+  const returnTo = typeof req.query.returnTo === 'string' && req.query.returnTo.startsWith('/')
+    ? req.query.returnTo
+    : '/';
+  if (!token) {
+    return res.sendFile(path.join(__dirname, 'public', 'sso-login.html'));
+  }
+
+  try {
+    const fetch = (await import('node-fetch')).default;
+    const response = await fetch(`${SSO_SERVICE_URL}/auth/sso/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ token })
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      req.session.user = data.user;
+      return req.session.save((err) => {
+        if (err) {
+          console.error('[website2] Session save failed during token login:', err);
+          return res.sendFile(path.join(__dirname, 'public', 'sso-login.html'));
+        }
+        res.redirect(returnTo);
+      });
+    }
+
+    return res.sendFile(path.join(__dirname, 'public', 'sso-login.html'));
+  } catch (error) {
+    console.error('[website2] Error during token login:', error);
+    return res.sendFile(path.join(__dirname, 'public', 'sso-login.html'));
+  }
 });
 
 app.post('/auth/generate-sso-for-site', async (req, res) => {
