@@ -22,6 +22,104 @@ async function goToWebsite2WithSSO(event) {
     }
 }
 
+const WEBSITE2_ORIGIN = 'http://localhost:3001';
+
+let lastEmbedToken = null;
+
+function showEmbedSection() {
+    const section = document.getElementById('embed-section');
+    if (section) section.classList.remove('hidden');
+}
+
+function hideEmbedSection() {
+    const section = document.getElementById('embed-section');
+    if (section) section.classList.add('hidden');
+
+    const iframe = document.getElementById('embed-iframe');
+    if (iframe) iframe.src = 'about:blank';
+
+    lastEmbedToken = null;
+}
+
+function setEmbedLoading(isLoading, message) {
+    const overlay = document.getElementById('embed-loading');
+    if (!overlay) return;
+
+    if (!isLoading) {
+        overlay.classList.add('hidden');
+        return;
+    }
+
+    overlay.classList.remove('hidden');
+    if (message) {
+        overlay.innerHTML = `<div style="text-align:center;"><div class="loading"></div>${message}</div>`;
+    } else {
+        overlay.innerHTML = `
+            <div>
+                <div class="loading"></div>
+                Loading Website 2 with SSO...
+            </div>
+        `;
+    }
+}
+
+async function generateWebsite2SSOToken() {
+    const response = await fetch('/auth/generate-sso-for-site', {
+        method: 'POST',
+        credentials: 'include'
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.token || null;
+}
+
+async function loadWebsite2Embed(event) {
+    if (event) event.preventDefault();
+
+    showEmbedSection();
+    setEmbedLoading(true);
+
+    const iframe = document.getElementById('embed-iframe');
+    if (!iframe) return;
+
+    iframe.src = 'about:blank';
+
+    try {
+        const token = await generateWebsite2SSOToken();
+        if (!token) {
+            setEmbedLoading(true, 'Failed to generate SSO token. Please sign in first.');
+            return;
+        }
+
+        lastEmbedToken = token;
+        iframe.onload = () => setEmbedLoading(false);
+        iframe.src = `${WEBSITE2_ORIGIN}/sso-login?token=${encodeURIComponent(token)}`;
+    } catch (error) {
+        console.error('[website1] Error embedding Website 2:', error);
+        setEmbedLoading(true, 'Error loading Website 2. Please try again.');
+    }
+}
+
+function popoutEmbeddedWebsite2() {
+    if (lastEmbedToken) {
+        window.open(`${WEBSITE2_ORIGIN}/sso-login?token=${encodeURIComponent(lastEmbedToken)}`, '_blank');
+        return;
+    }
+    window.open(WEBSITE2_ORIGIN, '_blank');
+}
+
+function wireEmbedActions() {
+    const reloadBtn = document.getElementById('embed-reload');
+    if (reloadBtn) reloadBtn.onclick = () => loadWebsite2Embed();
+
+    const popoutBtn = document.getElementById('embed-popout');
+    if (popoutBtn) popoutBtn.onclick = () => popoutEmbeddedWebsite2();
+
+    const hideBtn = document.getElementById('embed-hide');
+    if (hideBtn) hideBtn.onclick = () => hideEmbedSection();
+}
+
 async function checkAuthStatus() {
     try {
         const response = await fetch('/auth/status', {
@@ -53,8 +151,20 @@ async function checkAuthStatus() {
                         Go to Website 2
                     </span>
                 </a>
+                <a href="#" onclick="loadWebsite2Embed(event)" class="btn btn-primary">
+                    <span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                        Embed Website 2 Here
+                    </span>
+                </a>
                 <a href="/auth/logout" class="btn btn-danger">Sign Out</a>
             `;
+
+            wireEmbedActions();
         } else {
             userInfoDiv.innerHTML = '<p class="subtitle">You are not signed in</p>';
             authButtonsDiv.innerHTML = `
@@ -69,6 +179,7 @@ async function checkAuthStatus() {
                     </span>
                 </a>
             `;
+            hideEmbedSection();
         }
     } catch (error) {
         console.error('Error checking auth status:', error);

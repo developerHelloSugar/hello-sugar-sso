@@ -7,13 +7,33 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-    <div class="container">
+    <div class="container container-wide">
         <div class="card">
             <h1>Website 1</h1>
             <p class="subtitle">This website uses SSO for authentication</p>
 
             <div id="user-info" class="user-info"></div>
             <div id="auth-buttons" class="button-group"></div>
+        </div>
+        
+        <div id="embed-section" class="embed-section hidden">
+            <div class="embed-section-header">
+                <h2>Website 2 (Embedded)</h2>
+                <div class="embed-actions">
+                    <button id="embed-reload" class="btn btn-secondary btn-small" type="button">Reload</button>
+                    <button id="embed-popout" class="btn btn-primary btn-small" type="button">Open in new tab</button>
+                    <button id="embed-hide" class="btn btn-danger btn-small" type="button">Hide</button>
+                </div>
+            </div>
+            <div class="embed-frame">
+                <div class="loading-overlay" id="embed-loading">
+                    <div>
+                        <div class="loading"></div>
+                        Loading Website 2 with SSO...
+                    </div>
+                </div>
+                <iframe id="embed-iframe" src="about:blank" title="Website 2 (Embedded)"></iframe>
+            </div>
         </div>
     </div>
 

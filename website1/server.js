@@ -92,6 +92,10 @@ app.get('/sso-login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'sso-login.html'));
 });
 
+app.get('/embed', (req, res) => {
+  res.redirect('/');
+});
+
 app.post('/auth/generate-sso-for-site', async (req, res) => {
   console.log('[website1 /auth/generate-sso-for-site] Request received');
 
